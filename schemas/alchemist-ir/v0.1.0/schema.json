@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://waifucorp.dev/alchemist/schemas/ir/0.1.0",
+  "title": "Alchemist IR 0.1.0",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["alchemist_ir_version", "metadata", "inputs", "outputs", "variables", "secrets", "nodes", "edges", "extensions"],
+  "properties": {
+    "alchemist_ir_version": {"const": "0.1.0"},
+    "metadata": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}}, "additionalProperties": true},
+    "inputs": {"type": "array", "items": {"$ref": "#/$defs/port"}},
+    "outputs": {"type": "array", "items": {"$ref": "#/$defs/port"}},
+    "variables": {"type": "object"},
+    "secrets": {"type": "array", "items": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "reference": {"type": "string"}}, "additionalProperties": true}},
+    "nodes": {"type": "array", "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "items": {"$ref": "#/$defs/edge"}},
+    "extensions": {"$ref": "#/$defs/extensions"}
+  },
+  "$defs": {
+    "jsonValue": {"type": ["null", "boolean", "number", "string", "array", "object"]},
+    "extensions": {"type": "object", "additionalProperties": {"$ref": "#/$defs/jsonValue"}},
+    "port": {"type": "object", "required": ["name"], "properties": {"name": {"type": "string"}, "schema": {"type": "object"}, "required": {"type": "boolean"}}, "additionalProperties": true},
+    "node": {
+      "type": "object", "additionalProperties": false,
+      "required": ["id", "kind", "config", "inputs", "outputs", "metadata"],
+      "properties": {
+        "id": {"type": "string", "minLength": 1},
+        "kind": {"enum": ["input", "output", "llm", "prompt", "tool", "agent", "router", "condition", "transform", "memory", "retriever", "human_input", "subflow", "custom"]},
+        "config": {"type": "object"}, "inputs": {"type": "array", "items": {"$ref": "#/$defs/port"}}, "outputs": {"type": "array", "items": {"$ref": "#/$defs/port"}},
+        "metadata": {"type": "object"}, "extensions": {"$ref": "#/$defs/extensions"}
+      }
+    },
+    "edge": {
+      "type": "object", "additionalProperties": false, "required": ["from", "to"],
+      "properties": {"from": {"type": "string"}, "to": {"type": "string"}, "condition": {"$ref": "#/$defs/jsonValue"}, "mapping": {"type": "object"}, "extensions": {"$ref": "#/$defs/extensions"}}
+    }
+  }
+}

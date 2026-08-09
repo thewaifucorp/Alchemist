@@ -1,0 +1,1 @@
+{"alchemist_ir_version":"0.1.0","metadata":{"name":"Linear"},"inputs":[],"outputs":[],"variables":{},"secrets":[],"nodes":[{"id":"in","kind":"input","config":{},"inputs":[],"outputs":[],"metadata":{}},{"id":"out","kind":"output","config":{},"inputs":[],"outputs":[],"metadata":{}}],"edges":[{"from":"in","to":"out"}],"extensions":{}}
