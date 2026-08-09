@@ -1,5 +1,6 @@
 import json, unittest
 from pathlib import Path
+from jsonschema import Draft202012Validator
 from alchemist.adapters import N8nAdapter, LangFlowAdapter
 from alchemist.conversion import convert
 from alchemist.core import validate_ir
@@ -8,6 +9,15 @@ ROOT = Path(__file__).parent
 def fixture(name): return json.loads((ROOT / "fixtures" / name).read_text())
 
 class AlchemistTests(unittest.TestCase):
+    def test_schema_is_valid_and_examples_conform(self):
+        schema_root = ROOT.parent / "schemas/alchemist-ir/v0.1.0"
+        schema = json.loads((schema_root / "schema.json").read_text())
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema)
+        for path in (schema_root / "examples").glob("*.json"):
+            errors = sorted(validator.iter_errors(json.loads(path.read_text())), key=lambda error: list(error.path))
+            self.assertEqual([], errors, path.name)
+
     def test_all_schema_examples_pass_core_validation(self):
         for path in (ROOT.parent / "schemas/alchemist-ir/v0.1.0/examples").glob("*.json"):
             self.assertEqual([], validate_ir(json.loads(path.read_text())), path.name)
@@ -33,5 +43,9 @@ class AlchemistTests(unittest.TestCase):
     def test_n8n_to_langflow(self):
         result = convert(fixture("n8n_linear.json"), "n8n", "langflow")
         self.assertTrue(result.ok); self.assertEqual(2, len(result.value["data"]["nodes"])); self.assertEqual(1, len(result.value["data"]["edges"]))
+
+    def test_langflow_to_n8n(self):
+        result = convert(fixture("langflow_linear.json"), "langflow", "n8n")
+        self.assertTrue(result.ok); self.assertEqual(2, len(result.value["nodes"])); self.assertEqual(1, len(result.value["connections"]["Chat Input"]["main"][0]))
 
 if __name__ == "__main__": unittest.main()

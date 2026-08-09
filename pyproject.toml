@@ -13,5 +13,8 @@ license = {text = "Apache-2.0"}
 [project.scripts]
 alchemist = "alchemist.cli:main"
 
+[project.optional-dependencies]
+test = ["jsonschema>=4.23,<5"]
+
 [tool.setuptools.packages.find]
 where = ["src"]
