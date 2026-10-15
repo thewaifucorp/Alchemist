@@ -4,6 +4,7 @@ from pathlib import Path
 from alchemist.adapters import ADAPTERS
 from alchemist.conversion import convert
 from alchemist.core import validate_ir
+from alchemist.semantic import ENV_API_KEY, LLMConfig, SemanticMapper
 
 def _read(path: str) -> dict:
     with (sys.stdin if path == "-" else Path(path).open(encoding="utf-8")) as stream: return json.load(stream)
@@ -11,17 +12,27 @@ def _read(path: str) -> dict:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="alchemist", description="Transpile workflows through Alchemist IR")
     sub = parser.add_subparsers(dest="command", required=True)
-    inspect = sub.add_parser("inspect"); inspect.add_argument("file"); inspect.add_argument("--from", dest="source", choices=["ir", *ADAPTERS], required=True)
-    conv = sub.add_parser("convert"); conv.add_argument("file"); conv.add_argument("--from", dest="source", choices=["ir", *ADAPTERS], required=True); conv.add_argument("--to", dest="target", choices=["ir", *ADAPTERS], required=True); conv.add_argument("-o", "--output")
+    llm = argparse.ArgumentParser(add_help=False); group = llm.add_argument_group("optional LLM-assisted mapping (off by default)")
+    group.add_argument("--semantic", action="store_true", help="map nodes the deterministic rules leave as custom through an OpenAI-compatible endpoint")
+    group.add_argument("--llm-base-url", help="endpoint base URL, e.g. http://localhost:11434/v1 (env ALCHEMIST_LLM_BASE_URL)")
+    group.add_argument("--llm-model", help="model name (env ALCHEMIST_LLM_MODEL)")
+    group.add_argument("--llm-api-key-env", default=ENV_API_KEY, help=f"environment variable holding the API key (default {ENV_API_KEY})")
+    group.add_argument("--llm-timeout", type=float, help="request timeout in seconds (env ALCHEMIST_LLM_TIMEOUT, default 60)")
+    inspect = sub.add_parser("inspect", parents=[llm]); inspect.add_argument("file"); inspect.add_argument("--from", dest="source", choices=["ir", *ADAPTERS], required=True)
+    conv = sub.add_parser("convert", parents=[llm]); conv.add_argument("file"); conv.add_argument("--from", dest="source", choices=["ir", *ADAPTERS], required=True); conv.add_argument("--to", dest="target", choices=["ir", *ADAPTERS], required=True); conv.add_argument("-o", "--output")
     valid = sub.add_parser("validate"); valid.add_argument("file")
     args = parser.parse_args(argv)
+    mapper = None
+    if getattr(args, "semantic", False):
+        try: mapper = SemanticMapper.from_config(LLMConfig.resolve(args.llm_base_url, args.llm_model, args.llm_api_key_env, args.llm_timeout))
+        except ValueError as exc: print(f"error: {exc}", file=sys.stderr); return 2
     try: source = _read(args.file)
     except (OSError, json.JSONDecodeError) as exc: print(f"error: {exc}", file=sys.stderr); return 2
     if args.command == "validate": result, diagnostics = source, validate_ir(source)
     elif args.command == "inspect":
-        converted = convert(source, args.source, "ir"); diagnostics = converted.diagnostics; result = {"valid": converted.ok, "nodes": len(converted.value.get("nodes", [])) if converted.value else 0, "edges": len(converted.value.get("edges", [])) if converted.value else 0, "diagnostics": [d.as_dict() for d in diagnostics]}
+        converted = convert(source, args.source, "ir", mapper); diagnostics = converted.diagnostics; result = {"valid": converted.ok, "nodes": len(converted.value.get("nodes", [])) if converted.value else 0, "edges": len(converted.value.get("edges", [])) if converted.value else 0, "diagnostics": [d.as_dict() for d in diagnostics]}
     else:
-        converted = convert(source, args.source, args.target); result, diagnostics = converted.value, converted.diagnostics
+        converted = convert(source, args.source, args.target, mapper); result, diagnostics = converted.value, converted.diagnostics
     if args.command == "convert" and result is not None:
         text = json.dumps(result, indent=2, ensure_ascii=False) + "\n"
         if args.output: Path(args.output).write_text(text, encoding="utf-8")
