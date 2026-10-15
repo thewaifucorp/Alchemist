@@ -16,7 +16,7 @@ We considered n8n JSON, LangFlow JSON, LangGraph code/state graphs, and Bastion'
 
 Adopt a framework-agnostic, explicitly versioned Alchemist IR, beginning at `0.1.0`. It models flow metadata, interface ports, variables, secret references, semantic nodes, edges, and namespaced extensions. Core code imports no adapter. Adapters parse/generate IR and return diagnostics alongside values.
 
-The IR prefers deterministic parsing, schema mapping, and rules. An optional future `SemanticMapper` may resolve genuine ambiguity, but is never required and every intervention must emit `SEMANTIC_APPROXIMATION` (or a more specific diagnostic). It cannot silently modify a workflow.
+The IR prefers deterministic parsing, schema mapping, and rules. An optional future `SemanticMapper` may resolve genuine ambiguity, but is never required and every intervention must emit `SEMANTIC_APPROXIMATION` (or a more specific diagnostic). It cannot silently modify a workflow. Implemented as an opt-in pass by [ADR 0002](0002-optional-llm-semantic-mapper.md).
 
 ## Loss and extensions
 
